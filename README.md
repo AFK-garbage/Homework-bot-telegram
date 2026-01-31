@@ -8,7 +8,7 @@
 ## 🛠 Стек | Stack
 
 - **aiogram 3.x** — async Telegram framework
-- **SQLite** (v1) → PostgreSQL (v2) | Лёгкая миграция через SQLAlchemy
+- **SQLite** 
 - **Yandex Cloud** — S3-compatible object storage
 - **Architecture:** Repository Pattern, FSM (Finite State Machine), Middleware rate-limiting
 
