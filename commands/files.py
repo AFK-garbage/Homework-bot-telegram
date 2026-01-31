@@ -1,4 +1,4 @@
-# commands/files.py
+
 import os
 from datetime import datetime
 from aiogram import Router, types, F
@@ -7,7 +7,8 @@ from aiogram.fsm.context import FSMContext
 
 from config import ALLOWED_EXTENSIONS, MAX_FILE_SIZE
 from aiogram import Bot, Router, types, F
-from loader import bot, storage, homework_db
+from loader import bot, storage, async_session  
+from database import crud  
 from states.homework_states import HomeworkStates
 from utils.helpers import format_file_size, get_file_emoji
 from keyboards.homework import (
@@ -16,11 +17,9 @@ from keyboards.homework import (
     file_one_keyboard,
     file_two_keyboard,
     file_three_keyboard,
-    file_four_keyboard,
-    file_five_keyboard,
 )
 
-router = Router()  # ✅ Определяем router
+router = Router()
 
 # === ХЕНДЛЕРЫ КОМАНД ===
 
@@ -29,44 +28,48 @@ async def view_specific_file(message: types.Message):
     """Просмотр файла по ID"""
     try:
         file_id = int(message.text.replace("/file_", ""))
-        file_info = homework_db.get_file_by_id(file_id)
-        
-        if not file_info:
-            await message.answer("❌ Файл не найден в базе!")
-            return
-        
-        file_db_id, homework_id, storage_id, file_type, file_name, file_size, created_at = file_info
-        
-        # Проверка доступа
-        homework = homework_db.get_homework_by_id(homework_id)
-        if not homework:
-            await message.answer("❌ Задание не найдено!")
-            return
-        
         user_id = message.from_user.id
-        homework_user_id = homework[1]
         
-        if homework_user_id != user_id and not homework_db.is_moderator(user_id):
-            await message.answer("❌ Нет доступа к этому файлу!")
-            return
+        
+        async with async_session() as session:
+            file_info = await crud.get_file_by_id(session, file_id)
+            
+            if not file_info:
+                await message.answer("❌ Файл не найден в базе!")
+                return
+            
+            
+            homework = await crud.get_homework_by_id(session, file_info.homework_id)
+            
+            if not homework:
+                await message.answer("❌ Задание не найдено!")
+                return
+            
+            # Проверка доступа (владелец или модератор)
+            is_mod = await crud.is_moderator(session, user_id)
+            if homework.user_id != user_id and not is_mod:
+                await message.answer("❌ Нет доступа к этому файлу!")
+                return
+        
+        # Сессия закрыта, но file_info и homework уже загружены в память
         
         # Получаем файл из хранилища
         try:
-            file_content, file_meta = await storage.get_file(storage_id)
+            file_content, file_meta = await storage.get_file(file_info.storage_id)
             
-            temp_path = f"./temp_{file_name}"
+            temp_path = f"./temp_{file_info.file_name}"
             with open(temp_path, 'wb') as f:
                 f.write(file_content)
             
             # Отправляем по типу
             file_input = FSInputFile(temp_path)
-            caption = f"{get_file_emoji(file_type)} {file_name} ({format_file_size(file_size)})"
+            caption = f"{get_file_emoji(file_info.file_type)} {file_info.file_name} ({format_file_size(file_info.file_size)})"
             
-            if file_type == "photo":
+            if file_info.file_type == "photo":
                 await message.answer_photo(file_input, caption=caption)
-            elif file_type == "voice":
+            elif file_info.file_type == "voice":
                 await message.answer_voice(file_input, caption=caption)
-            elif file_type == "video":
+            elif file_info.file_type == "video":
                 await message.answer_video(file_input, caption=caption)
             else:
                 await message.answer_document(file_input, caption=caption)
@@ -84,7 +87,11 @@ async def add_homework_start(message: Message, state: FSMContext):
     """Начало добавления ДЗ"""
     user_id = message.from_user.id
     
-    if not homework_db.is_moderator(user_id):
+    
+    async with async_session() as session:
+        is_mod = await crud.is_moderator(session, user_id)
+    
+    if not is_mod:
         await message.answer("❌ У вас нет прав для добавления заданий.")
         return
     
@@ -138,14 +145,14 @@ async def handle_files_state(message: Message, state: FSMContext):
     temp_files = user_data.get('temp_files', [])
     file_mode = user_data.get('file_mode', 'single')
     
-    # Кнопка "✅ Без файла"
+    
     if message.text == "✅ Без файла":
         success = await save_homework_to_db(message, state, files_list=[])
         if success:
             await state.clear()
         return
     
-    # Кнопка "📎 Добавить файл"
+    
     elif message.text == "📎 Добавить файл":
         keyboard = ReplyKeyboardMarkup(
             keyboard=file_options_keyboard,
@@ -154,13 +161,13 @@ async def handle_files_state(message: Message, state: FSMContext):
         await message.answer("Выберите режим:", reply_markup=keyboard)
         return
     
-    # Кнопка "📎 Один файл"
+    
     elif message.text == "📎 Один файл":
         await state.update_data(file_mode='single', temp_files=[])
         await message.answer("📎 Отправьте ОДИН файл", reply_markup=ReplyKeyboardRemove())
         return
     
-    # Кнопка "📁 Несколько файлов"
+    
     elif message.text == "📁 Несколько файлов":
         await state.update_data(file_mode='multiple', temp_files=[])
         
@@ -178,7 +185,7 @@ async def handle_files_state(message: Message, state: FSMContext):
         )
         return
     
-    # Получен файл
+    
     elif message.content_type in ('photo', 'document', 'voice', 'video', 'audio'):
         file_data = await download_file_simple(message, bot)
         
@@ -197,7 +204,6 @@ async def handle_files_state(message: Message, state: FSMContext):
                 )
                 await message.answer(
                     f"✅ Файл добавлен! ({len(temp_files)} шт.)\n"
-                    f"📎 {file_data['name']}\n"
                     f"💾 {format_file_size(file_data['size'])}\n\n"
                     f"Что дальше?",
                     reply_markup=keyboard
@@ -207,21 +213,21 @@ async def handle_files_state(message: Message, state: FSMContext):
         
         return
     
-    # Кнопка "✅ Завершить" (multiple режим)
+    
     elif message.text == "✅ Завершить" and file_mode == 'multiple':
         success = await save_homework_to_db(message, state, files_list=temp_files)
         if success:
             await state.clear()
         return
     
-    # Кнопка "❌ Без файлов"
+    
     elif message.text == "❌ Без файлов":
         success = await save_homework_to_db(message, state, files_list=[])
         if success:
             await state.clear()
         return
     
-    # Неизвестный текст
+    
     else:
         await message.answer("🤔 Отправьте файл или используйте кнопки")
 
@@ -239,15 +245,20 @@ async def save_homework_to_db(message: Message, state: FSMContext, files_list=No
             await message.answer("❌ Ошибка: данные задания повреждены")
             return False
         
-        homework_id = homework_db.add_homework(
-            user_id=message.from_user.id,
-            subject=user_data['subject'],
-            task=user_data['task'],
-            deadline=user_data['deadline']
-        )
         
-        if files_list:
-            homework_db.add_files_to_homework(homework_id, files_list)
+        async with async_session() as session:
+            homework_id = await crud.add_homework(
+                session,
+                user_id=message.from_user.id,
+                subject=user_data['subject'],
+                task=user_data['task'],
+                deadline=user_data['deadline']
+            )
+            
+            if files_list:
+                await crud.add_files_to_homework(session, homework_id, files_list)
+            
+            
         
         response = (
             f"✅ ЗАДАНИЕ ДОБАВЛЕНО!\n\n"
@@ -276,7 +287,7 @@ async def save_homework_to_db(message: Message, state: FSMContext, files_list=No
 async def download_file_simple(message: Message, bot: Bot):
     """Скачивает файл через HybridStorage"""
     try:
-        # Определяем тип и имя файла
+        
         if message.photo:
             file_obj = message.photo[-1]
             file_type = "photo"
@@ -301,24 +312,24 @@ async def download_file_simple(message: Message, bot: Bot):
             await message.answer("❌ Неподдерживаемый тип файла")
             return None
         
-        # Проверка размера
+        
         if file_obj.file_size > MAX_FILE_SIZE:
             await message.answer("❌ Файл слишком большой (макс 50MB)")
             return None
         
-        # Проверка расширения
+        
         if '.' in original_name:
             ext = os.path.splitext(original_name)[1].lower()
             if ext not in ALLOWED_EXTENSIONS:
                 await message.answer(f"❌ Запрещенный тип файла {ext}")
                 return None
         
-        # Скачиваем файл
+        
         file_info = await bot.get_file(file_obj.file_id)
         downloaded = await bot.download_file(file_info.file_path)
         file_content = downloaded.read()
         
-        # Сохраняем через HybridStorage
+       
         save_result = await storage.save_file(
             file_content=file_content,
             filename=original_name,

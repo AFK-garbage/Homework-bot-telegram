@@ -1,9 +1,9 @@
-
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 import config
-from loader import homework_db, CREATOR_PASSWORD
+from loader import CREATOR_PASSWORD, async_session
+from database import crud
 from states.admin_states import ModeratorStates
 
 router = Router()
@@ -30,7 +30,8 @@ async def list_moderators_command(message: types.Message):
         await message.answer("❌ Эта команда только для создателя бота.")
         return
 
-    moderators = homework_db.get_all_moderators()
+    async with async_session() as session:
+        moderators = await crud.get_all_moderators(session)
 
     if not moderators:
         await message.answer("📋 Нет зарегистрированных модераторов.")
@@ -38,11 +39,10 @@ async def list_moderators_command(message: types.Message):
 
     response = "📋 Список модераторов:\n\n"
     for mod in moderators:
-        user_id, created_by, created_at, is_active = mod
-        status = "✅ Активен" if is_active else "❌ Неактивен"
-        response += f"👤 ID: {user_id}\n"
-        response += f"📅 Создан: {created_at[:10]}\n"
-        response += f"👑 Создатель: {created_by}\n"
+        status = "✅ Активен" if mod.is_active else "❌ Неактивен"
+        response += f"👤 ID: {mod.user_id}\n"
+        response += f"📅 Создан: {mod.created_at[:10] if isinstance(mod.created_at, str) else mod.created_at.strftime('%Y-%m-%d')}\n"
+        response += f"👑 Создатель: {mod.created_by}\n"
         response += f"📊 Статус: {status}\n\n"
 
     await message.answer(response)
@@ -88,7 +88,8 @@ async def process_moderator_password(message: types.Message, state: FSMContext):
     user_data = await state.get_data()
     new_user_id = user_data.get('new_user_id')
     
-    success = homework_db.create_moderator(config.CREATOR_ID, new_user_id, password)
+    async with async_session() as session:
+        success = await crud.create_moderator(session, config.CREATOR_ID, new_user_id, password)
     
     if success:
         await message.answer(
@@ -116,7 +117,10 @@ async def process_moderator_login(message: types.Message, state: FSMContext):
     user_id = message.from_user.id
     password = message.text.strip()
     
-    if homework_db.verify_moderator(user_id, password):
+    async with async_session() as session:
+        is_valid = await crud.verify_moderator(session, user_id, password)
+    
+    if is_valid:
         await message.answer(
             "✅ Успешный вход! Теперь вы модератор.\n"
             "Можете добавлять и просматривать задания.",
