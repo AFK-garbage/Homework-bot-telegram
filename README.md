@@ -7,10 +7,9 @@
 
 ## 🛠 Стек | Stack
 
-- **aiogram 3.x** — async Telegram framework
-- **SQLite** 
-- **Yandex Cloud** — S3-compatible object storage
-- **Architecture:** Repository Pattern, FSM (Finite State Machine), Middleware rate-limiting
+**Core:** `aiogram 3.x` • `SQLAlchemy 2.0 (async)` • `SQLite` • `Alembic`  
+**Cloud:** `Yandex Object Storage` (S3)  
+**Patterns:** `Repository Pattern` • `FSM` • `Rate-limiting`
 
 ---
 
