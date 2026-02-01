@@ -29,7 +29,7 @@ async def init_storage():
         print(f"✅ Модератор проверен/создан")
     
 
-    from config import YANDEX_CLOUD_ENABLED, YANDEX_CLOUD_ACCESS_KEY, YANDEX_CLOUD_SECRET_KEY, YANDEX_CLOUD_BUCKET, YANDEX_CLOUD_REGION
+    from config import YANDEX_CLOUD_ENABLED, CLOUD_ACCESS_KEY, CLOUD_SECRET_KEY, CLOUD_BUCKET, YANDEX_CLOUD_REGION
     
 
     print("✅ Storage инициализирован")
