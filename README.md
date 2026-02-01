@@ -1,5 +1,4 @@
 
-
 ```markdown
 # 📚 Homework Bot v2.0 | Бот для ДЗ
 
@@ -12,8 +11,7 @@
 
 - **SQLAlchemy 2.0** — async ORM вместо сырого SQL
 - **Alembic** — миграции базы данных (версионирование схемы)
-- **Repository Pattern** — чистое разделение моделей и логики  
-- **Docker** — контейнеризация для легкого деплоя
+- **Repository Pattern** — чистое разделение моделей и логики  - - **Docker** — контейнеризация для легкого деплоя
 
 ---
 
@@ -22,7 +20,6 @@
 **Core:** `aiogram 3.x` `SQLAlchemy 2.0` `Alembic` `SQLite`  
 **Cloud:** `Yandex Object Storage` (S3)  
 **Architecture:** `Repository Pattern` `FSM` `Middleware Rate-limiting` `Unit of Work`
-
 ---
 
 ## 🚀 Быстрый старт | Quick Start
@@ -65,23 +62,6 @@ docker-compose up -d
 
 ---
 
-
-## 📁 Структура проекта | Project Structure
-
-```
-├── bot.py                 # Entry point
-├── database/
-│   ├── base.py           # Engine & Session
-│   ├── models.py         # SQLAlchemy models (tables)
-│   └── crud.py           # Repository (CRUD operations)
-├── storage/              # Hybrid file storage (Local + Cloud)
-├── middlewares/          # Rate limiting & anti-flood
-├── commands/             # Handlers (routers)
-├── Dockerfile            # Container config
-└── docker-compose.yml    # Deployment config
-```
-
----
 
 ## ✨ Фичи | Features
 
