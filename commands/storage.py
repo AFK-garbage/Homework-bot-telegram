@@ -125,7 +125,7 @@ async def backup_status_cmd(message: types.Message):
     
     response = f"📦 **Последние бэкапы:** (всего {len(backups)})\n\n"
     
-    for i, (backup_name, backup_time) in enumerate(backups[:5]):  # Показываем 5 последних
+    for i, (backup_name, backup_time) in enumerate(backups[:5]):  
         time_str = datetime.fromtimestamp(backup_time).strftime("%d.%m.%Y %H:%M")
         file_path = os.path.join(full_dir, backup_name)
         size_mb = os.path.getsize(file_path) / 1024 / 1024 if os.path.exists(file_path) else 0
@@ -135,7 +135,7 @@ async def backup_status_cmd(message: types.Message):
         response += f"   📦 {size_mb:.1f} МБ\n\n"
     
     response += f"🔄 Авто-бэкапы: каждые {backup_system.backup_interval_days} дней\n"
-    response += f"📁 Папка: {backup_dir}"  # ← ГЛАВНОЕ ИЗМЕНЕНИЕ: убрали кавычки
+    response += f"📁 Папка: {backup_dir}"
 
     await message.answer(response)
 

@@ -1,0 +1,10 @@
+version: '3.8'
+services:
+  bot:
+    build: .
+    container_name: homework_bot
+    env_file:
+      - .env
+    volumes:
+      - ./HomeWorkBotFiles:/app/HomeWorkBotFiles
+    restart: unless-stopped

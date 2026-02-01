@@ -1,23 +1,22 @@
-
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
 from keyboards.main import main_keyboard
-from database.models import HomeworkDB
-
+from loader import async_session
+from database import crud
 
 router = Router()
-
-
-homework_db = HomeworkDB()
 
 @router.message(Command("start"))
 async def start_command(message: types.Message):
     """Обработчик команды /start"""
     user_id = message.from_user.id
 
-    if homework_db.is_moderator(user_id):
+    async with async_session() as session:
+        is_mod = await crud.is_moderator(session, user_id)
+
+    if is_mod:
         await message.answer(
             "👑 Добро пожаловать, модератор!\n"
             "Вы можете добавлять и просматривать задания.",
@@ -69,8 +68,6 @@ async def help_command(message: types.Message):
     
     await message.answer(help_text)
 
-
-# Обработчики кнопок из главного меню
 @router.message(F.text == "ℹ️ Помощь")
 async def help_button(message: types.Message):
     """Обработчик кнопки 'Помощь'"""

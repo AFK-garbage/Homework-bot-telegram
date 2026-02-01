@@ -168,17 +168,17 @@ class UserLockMiddleware(BaseMiddleware):
     ) -> Any:
         """ОСНОВНОЙ МЕТОД MIDDLEWARE"""
         
-        # Получаем user_id
+        
         user_id = event.from_user.id
         current_time = time.time()
         
-        # Статистика
+        
         self.stats['total_requests'] += 1
         
-        # Очищаем старые данные
+        
         self._cleanup_old_data(current_time)
         
-        # Проверяем лимиты
+        
         if not self._check_rate_limit(user_id, current_time):
             try:
                 if user_id in self.blocked_users:
@@ -197,15 +197,14 @@ class UserLockMiddleware(BaseMiddleware):
             
             return
         
-        # Обновляем время
+        
         self.last_message_time[user_id] = current_time
         self.request_history[user_id].append(current_time)
         
-        # Добавляем в обрабатываемые
         self.processing_users.add(user_id)
         
         try:
-            # Выполняем обработчик
+            
             result = await handler(event, data)
             return result
             
@@ -214,11 +213,11 @@ class UserLockMiddleware(BaseMiddleware):
             raise
             
         finally:
-            # Всегда снимаем блокировку
+            
             if user_id in self.processing_users:
                 self.processing_users.remove(user_id)
             
-            # Логируем статистику
+            
             if self.stats['total_requests'] % 100 == 0:
                 print(f"📊 Статистика middleware:")
                 print(f"   Всего запросов: {self.stats['total_requests']}")
