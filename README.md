@@ -100,8 +100,8 @@ CLOUD_BUCKET=
 ## 📝 Лицензия | License
 
 MIT — свободное использование / free to use.  
-**Author:** @AFK-garbage  
-**Contacts:** [t.me/AFKgarbage]
+**Author:** @Madquill  
+**Contacts:** [t.me/Madquill]
 
 
 
